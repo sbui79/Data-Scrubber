@@ -14,3 +14,5 @@ export * from "./evidence";
 export * from "./reminders";
 export * from "./dashboard";
 export * from "./california";
+export * from "./support";
+export * from "./account";
