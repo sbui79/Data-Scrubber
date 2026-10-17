@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import type { Role } from "@privatepath/db";
 import { generateDek, hmacHash } from "@privatepath/crypto";
 import type { Deps, RequestContext } from "./deps";
 import { PRIVACY_VERSION, TERMS_VERSION } from "./deps";
@@ -69,3 +70,11 @@ export async function getUserDek(deps: Deps, userId: string): Promise<Buffer> {
 }
 
 export { randomUUID };
+
+export async function requireRole(deps: Deps, session: Session, roles: Role[]) {
+  const user = await requireUser(deps, session);
+  if (!roles.includes(user.role)) throw new AppError(403, "forbidden", "You don't have access to this.");
+  // Admin actions need strong authentication outside local development.
+  if (deps.requireAdminMfa && !session.mfa) throw new AppError(403, "mfa_required", "Multi-factor authentication is required.");
+  return user;
+}

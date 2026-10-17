@@ -5,6 +5,8 @@ export interface Deps {
   db: PrismaClient;
   kms: KmsAdapter;
   hashPepper: string;
+  /** Require an MFA-verified session for admin roles (always true outside local development). */
+  requireAdminMfa?: boolean;
 }
 
 export interface RequestContext {

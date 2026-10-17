@@ -18,8 +18,11 @@ user's behalf. The user reviews, approves, and submits every request themselves.
 | Database schema and migrations | Applied and checked by hand against local Postgres 16 (the audit-log trigger and the four-eyes constraint reject bad writes). |
 | `packages/crypto` (field encryption), `packages/audit` (hash chain), `packages/config` | Done, 16 unit tests passing. |
 | `packages/core` (signup/consent, encrypted profile, audit writer) | Done, 13 integration tests against real Postgres. |
-| API: `POST /api/v1/auth/signup`, `GET/POST/PATCH /api/v1/profile` | Works with mock auth headers (see below). No UI for these yet. No rate limiting yet. |
-| Real login (Clerk), onboarding screens, source directory, request workflow, reminders, export/delete | Not built yet. |
+| API: signup, profile, source catalog (`/sources`), listing reviews (`/listing-reviews`) | Works with mock auth headers (see below). No UI for these yet. No rate limiting yet. |
+| Admin API: create / propose change / approve source (`/admin/sources...`) | Works. A different compliance admin must approve every new source or change; MFA is enforced in production. |
+| Listing URL validation | Done: https only, approved source domain or subdomain only, no credentials or ports, never fetched by the server. |
+| Demo data (`pnpm seed`) | 10 fictional sources on `.test` domains, a demo user, and two demo admins. |
+| Real login (Clerk), onboarding screens, source/admin screens, removal-request workflow, reminders, export/delete | Not built yet. |
 
 So there is no end-to-end user journey yet. The steps below get a development environment running and let
 you exercise the parts that exist.
@@ -82,6 +85,17 @@ curl "${H[@]}" -d '{"displayName":"Demo","acceptTerms":true,"acceptPrivacy":true
 curl "${H[@]}" -d '{"legalFirstName":"Sam","legalLastName":"Sample"}' localhost:3000/api/v1/profile
 curl "${H[@]}" localhost:3000/api/v1/profile
 curl "${H[@]}" -X PATCH -d '{"currentCity":"Sampleville"}' localhost:3000/api/v1/profile
+```
+
+With seed data (`pnpm seed`), the mock identities are `mock_demo-user`, `mock_seed-admin-a` and `mock_seed-admin-b` (send them as `x-mock-auth-id`; any `x-mock-email` value is accepted):
+
+```bash
+U=localhost:3000/api/v1; D=(-H "x-mock-auth-id: mock_demo-user" -H "x-mock-email: demo@example.test" -H "content-type: application/json")
+curl "${D[@]}" $U/sources                                    # reviewed demo sources only
+curl "${D[@]}" -d '{"sourceId":"<id>","status":"FOUND","listingUrl":"https://<source-domain>/p/1","confirmOwnership":true}' $U/listing-reviews
+# Admin: propose a change as admin A, approve as admin B (admin A approving their own change is refused)
+curl -H "x-mock-auth-id: mock_seed-admin-a" -H "x-mock-email: a@example.test" -H "content-type: application/json" -d '{"difficulty":5}' $U/admin/sources/<id>/versions
+curl -X POST -H "x-mock-auth-id: mock_seed-admin-b" -H "x-mock-email: b@example.test" $U/admin/sources/<id>/versions/2/approve
 ```
 
 Use fictional data only. Profile values are stored encrypted; audit events record field names, never values.

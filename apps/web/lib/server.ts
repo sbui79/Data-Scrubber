@@ -18,14 +18,15 @@ function getDeps() {
       db: createPrisma(env.DATABASE_URL),
       kms: new MockKms(Buffer.from(env.MOCK_KMS_MASTER_KEY, "base64")),
       hashPepper: env.HASH_PEPPER,
+      requireAdminMfa: env.NODE_ENV === "production",
     },
   };
   return cached;
 }
 
 /** Wraps a handler: authenticates, builds context, limits body size, maps errors without leaking data. */
-export function handle(fn: (a: { deps: Deps; session: Session; ctx: RequestContext; body: () => Promise<unknown> }) => Promise<unknown>, successStatus = 200) {
-  return async (req: Request): Promise<Response> => {
+export function handle(fn: (a: { deps: Deps; session: Session; ctx: RequestContext; body: () => Promise<unknown>; params: Record<string, string> }) => Promise<unknown>, successStatus = 200) {
+  return async (req: Request, route: { params: Promise<Record<string, string>> }): Promise<Response> => {
     try {
       const { deps, authMode } = getDeps();
       const session = authenticate(req.headers, authMode);
@@ -38,7 +39,8 @@ export function handle(fn: (a: { deps: Deps; session: Session; ctx: RequestConte
         if (text.length > MAX_BODY_BYTES) throw Object.assign(new Error("too large"), { tooLarge: true });
         try { return JSON.parse(text); } catch { return undefined; }
       };
-      const result = await fn({ deps, session, ctx, body });
+      const params = (await route.params) ?? {};
+      const result = await fn({ deps, session, ctx, body, params });
       return Response.json(result, { status: successStatus, headers: { "Cache-Control": "no-store" } });
     } catch (err) {
       const { status, body } = toErrorResponse(err);

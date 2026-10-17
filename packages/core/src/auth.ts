@@ -3,6 +3,8 @@ import { AppError } from "./errors";
 export interface Session {
   authProviderId: string;
   email: string;
+  /** True when the identity provider reports a completed MFA challenge. */
+  mfa?: boolean;
 }
 
 /**
