@@ -17,8 +17,9 @@ user's behalf. The user reviews, approves, and submits every request themselves.
 | Security headers (CSP, HSTS, etc.) | Works. |
 | Database schema and migrations | Applied and checked by hand against local Postgres 16 (the audit-log trigger and the four-eyes constraint reject bad writes). |
 | `packages/crypto` (field encryption), `packages/audit` (hash chain), `packages/config` | Done, 16 unit tests passing. |
-| `packages/core` (signup/consent, encrypted profile, audit writer) | Written, **not yet tested or wired to API routes**. |
-| Login, onboarding screens, source directory, request workflow, reminders, export/delete | Not built yet. |
+| `packages/core` (signup/consent, encrypted profile, audit writer) | Done, 13 integration tests against real Postgres. |
+| API: `POST /api/v1/auth/signup`, `GET/POST/PATCH /api/v1/profile` | Works with mock auth headers (see below). No UI for these yet. No rate limiting yet. |
+| Real login (Clerk), onboarding screens, source directory, request workflow, reminders, export/delete | Not built yet. |
 
 So there is no end-to-end user journey yet. The steps below get a development environment running and let
 you exercise the parts that exist.
@@ -51,6 +52,10 @@ cp .env.example .env
 #     DATABASE_URL        e.g. postgresql://localhost/privatepath_dev   (add user:password@ if yours needs it)
 #     MOCK_KMS_MASTER_KEY output of: openssl rand -base64 32            (local development only)
 #     HASH_PEPPER         any random string of 16+ characters
+#     AUTH_MODE           mock (local development only)
+
+# 5. Let the web app read the root .env (git-ignored symlink)
+ln -sf ../../.env apps/web/.env.local
 ```
 
 Never commit `.env`. It is git-ignored. The mock KMS key is for local development only; the config loader
@@ -59,7 +64,7 @@ refuses to start in production if it is set.
 ## Running
 
 ```bash
-pnpm --filter @privatepath/web dev     # http://localhost:3000
+pnpm --filter @privatepath/web dev     # http://localhost:3000 (use dev, not start: production mode refuses mock auth and the mock KMS key by design)
 pnpm --filter @privatepath/web build   # production build check
 ```
 
@@ -69,6 +74,18 @@ Pages you can open now:
 - `/dashboard` placeholder dashboard (no sign-in yet)
 - `/api/v1/health` returns `{"status":"ok"}`
 
+Trying the API with mock auth (local development only):
+
+```bash
+H=(-H "x-mock-auth-id: demo1" -H "x-mock-email: demo@example.test" -H "content-type: application/json")
+curl "${H[@]}" -d '{"displayName":"Demo","acceptTerms":true,"acceptPrivacy":true,"authorizeOwnData":true}' localhost:3000/api/v1/auth/signup
+curl "${H[@]}" -d '{"legalFirstName":"Sam","legalLastName":"Sample"}' localhost:3000/api/v1/profile
+curl "${H[@]}" localhost:3000/api/v1/profile
+curl "${H[@]}" -X PATCH -d '{"currentCity":"Sampleville"}' localhost:3000/api/v1/profile
+```
+
+Use fictional data only. Profile values are stored encrypted; audit events record field names, never values.
+
 ## Tests and checks
 
 ```bash
@@ -76,7 +93,7 @@ pnpm test                    # unit tests (crypto, audit, config)
 pnpm exec tsc -p tsconfig.json   # type check
 ```
 
-Integration tests for `packages/core` need a separate database, so tests never touch your dev data:
+`pnpm test` also runs the `packages/core` integration tests, which need a separate database (they empty it between tests, so never point them at dev data; the default is `postgresql://stevenbui@localhost:5432/privatepath_test`, override with `TEST_DATABASE_URL`):
 
 ```bash
 createdb -h localhost privatepath_test

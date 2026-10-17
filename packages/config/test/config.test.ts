@@ -16,4 +16,7 @@ describe("loadEnv", () => {
   it("forbids the mock KMS key in production", () => {
     expect(() => loadEnv({ ...ok, NODE_ENV: "production", MOCK_KMS_MASTER_KEY: "x" })).toThrow("MOCK_KMS_MASTER_KEY");
   });
+  it("forbids mock auth in production", () => {
+    expect(() => loadEnv({ ...ok, NODE_ENV: "production" })).toThrow("AUTH_MODE");
+  });
 });

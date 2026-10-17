@@ -2,13 +2,22 @@
   "name": "@privatepath/web",
   "version": "0.0.0",
   "private": true,
-  "scripts": { "dev": "next dev", "build": "next build", "start": "next start" },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
   "dependencies": {
     "@privatepath/config": "workspace:*",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "@privatepath/core": "workspace:*",
+    "@privatepath/crypto": "workspace:*",
+    "@privatepath/db": "workspace:*",
+    "@next/env": "^15.0.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",

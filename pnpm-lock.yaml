@@ -181,9 +181,21 @@ importers:
 
   apps/web:
     dependencies:
+      '@next/env':
+        specifier: ^15.0.0
+        version: 15.5.28
       '@privatepath/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@privatepath/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@privatepath/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
+      '@privatepath/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       next:
         specifier: ^15.0.0
         version: 15.5.28(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -193,6 +205,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.3.1(react@19.3.1)
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       zod:
         specifier: ^3.23.0
         version: 3.25.76
@@ -214,6 +229,24 @@ importers:
 
   packages/config:
     dependencies:
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+
+  packages/core:
+    dependencies:
+      '@privatepath/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@privatepath/config':
+        specifier: workspace:*
+        version: link:../config
+      '@privatepath/crypto':
+        specifier: workspace:*
+        version: link:../crypto
+      '@privatepath/db':
+        specifier: workspace:*
+        version: link:../db
       zod:
         specifier: ^3.23.0
         version: 3.25.76
@@ -1253,6 +1286,9 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
+
   sharp@0.35.5:
     resolution: {integrity: sha512-Ywn4OnzGukp7CDMrp08RQ50YKmuwG47brZgIVPTvBaaAfQlRlygrRqSrxdCiL9M+LlzLBiJ68IR1QqvzHyjC7g==}
     engines: {node: '>=20.9.0'}
@@ -2188,6 +2224,8 @@ snapshots:
 
   semver@7.8.5:
     optional: true
+
+  server-only@0.0.1: {}
 
   sharp@0.35.5(@types/node@22.20.5):
     dependencies:

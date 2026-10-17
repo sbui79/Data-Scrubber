@@ -6,6 +6,7 @@ const schema = z.object({
   /** 32 bytes, base64. Local mock KMS only; production must use a real KMS. */
   MOCK_KMS_MASTER_KEY: z.string().optional(),
   HASH_PEPPER: z.string().min(16),
+  AUTH_MODE: z.enum(["mock", "clerk"]).default("mock"),
   CLERK_SECRET_KEY: z.string().optional(),
   FEATURE_MFA: z.coerce.boolean().default(false),
   FEATURE_FAMILY_MANAGER: z.coerce.boolean().default(false),
@@ -23,6 +24,9 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
   }
   if (env.data.NODE_ENV === "production" && env.data.MOCK_KMS_MASTER_KEY) {
     throw new Error("Invalid environment: MOCK_KMS_MASTER_KEY must not be set in production");
+  }
+  if (env.data.NODE_ENV === "production" && env.data.AUTH_MODE === "mock") {
+    throw new Error("Invalid environment: AUTH_MODE=mock is not allowed in production");
   }
   return env.data;
 }

@@ -33,7 +33,7 @@ export async function completeSignup(deps: Deps, session: Session, raw: unknown,
         email: session.email, displayName: input.displayName, authProviderId: session.authProviderId,
         termsVersionAccepted: TERMS_VERSION, privacyPolicyVersionAccepted: PRIVACY_VERSION,
         marketingConsentAt: input.marketingConsent ? now : null,
-        key: { create: { wrappedDek: wrapped, kmsKeyId: keyId } },
+        key: { create: { wrappedDek: new Uint8Array(wrapped), kmsKeyId: keyId } },
       },
     });
     const consents = [
