@@ -1,167 +1,158 @@
 # PrivatePath (working name)
 
 A privacy-first tool that helps a person discover, track, and request removal of **their own** publicly
-available personal data. It is not a people-search, background-check, or skip-tracing product. It never
-looks up other people, never scrapes or automates third-party sites, and never submits requests on the
-user's behalf. The user reviews, approves, and submits every request themselves. Removal is never guaranteed.
+available personal data. It is not a people-search, background-check, or skip-tracing product. It never looks
+up other people, never scrapes or automates third-party sites, and never submits requests on the user's behalf.
+The user reviews, approves, and submits every request themselves. Removal is never guaranteed.
 
-> **Status: early development.** Legal and compliance content is draft and needs privacy-attorney review
-> before any production use. See `docs/compliance-review.md`.
+> **Status: working MVP for local development.** Real authentication, production storage/email/KMS adapters and
+> all legal/compliance text are still to do (see "Not done yet"). Legal content is draft and needs
+> privacy-attorney review before any production use: `docs/compliance-review.md`.
 
-## What works today
+## Quick start
 
-| Area | State |
-|---|---|
-| Marketing home page, app shell and navigation | Works. Most nav links (profile, sources, ...) point to pages not built yet and show 404. |
-| `GET /api/v1/health` | Works. |
-| Security headers (CSP, HSTS, etc.) | Works. |
-| Database schema and migrations | Applied and checked by hand against local Postgres 16 (the audit-log trigger and the four-eyes constraint reject bad writes). |
-| `packages/crypto` (field encryption), `packages/audit` (hash chain), `packages/config` | Done, 16 unit tests passing. |
-| `packages/core` (signup/consent, encrypted profile, audit writer) | Done, 13 integration tests against real Postgres. |
-| API: signup, profile, source catalog (`/sources`), listing reviews (`/listing-reviews`) | Works with mock auth headers (see below). No UI for these yet. No rate limiting yet. |
-| Admin API: create / propose change / approve source (`/admin/sources...`) | Works. A different compliance admin must approve every new source or change; MFA is enforced in production. |
-| Removal requests: create, track, draft, approve, export, mark submitted, complete (`/removal-requests...`) | Works end to end over the API. Guarded state machine; a draft can't be copied or marked submitted until the user approves the exact content (hash-checked). Never auto-submits anywhere. |
-| Evidence upload / download / delete | Works (PNG, JPEG, WebP, PDF, up to 5 MB, 10 per request). Encrypted before storage. Local disk storage in development; production needs a real storage adapter (uploads return 501 until then). |
-| Listing URL validation | Done: https only, approved source domain or subdomain only, no credentials or ports, never fetched by the server. |
-| Demo data (`pnpm seed`) | 10 fictional sources on `.test` domains, a demo user, and two demo admins. |
-| Real login (Clerk), onboarding screens, source/admin/request screens, reminders, export/delete | Not built yet. |
-
-So there is no end-to-end user journey yet. The steps below get a development environment running and let
-you exercise the parts that exist.
-
-## Prerequisites
-
-- Node.js 20 or newer (developed on Node 26)
-- pnpm (developed on 12.x)
-- PostgreSQL 16 running locally (Homebrew: `brew install postgresql@16 && brew services start postgresql@16`),
-  or Docker (`docker compose up -d` starts Postgres with user/password/database all `privatepath`)
-
-## Setup
+Prerequisites: Node 20+, pnpm, PostgreSQL 16 running locally (or `docker compose up -d`).
 
 ```bash
-# 1. Install dependencies
 pnpm install
 
-# 2. Create a local database and apply migrations in order
-createdb -h localhost privatepath_dev
-for m in 0001_init 0002_audit_seq; do
-  psql -h localhost -d privatepath_dev -v ON_ERROR_STOP=1 -f packages/db/prisma/migrations/$m/migration.sql
+# database (creates dev and test databases and applies the migrations in order)
+for db in privatepath_dev privatepath_test; do
+  createdb -h localhost $db
+  for m in 0001_init 0002_audit_seq 0003_california_progress; do
+    psql -h localhost -d $db -v ON_ERROR_STOP=1 -q -f packages/db/prisma/migrations/$m/migration.sql
+  done
 done
-
-# 3. Generate the Prisma client
 pnpm --filter @privatepath/db generate
 
-# 4. Configure environment
+# configuration (git-ignored)
 cp .env.example .env
-#   Fill in locally:
-#     DATABASE_URL        e.g. postgresql://localhost/privatepath_dev   (add user:password@ if yours needs it)
-#     MOCK_KMS_MASTER_KEY output of: openssl rand -base64 32            (local development only)
-#     HASH_PEPPER         any random string of 16+ characters
-#     AUTH_MODE           mock (local development only)
+#   DATABASE_URL        postgresql://<your-user>@localhost:5432/privatepath_dev
+#   MOCK_KMS_MASTER_KEY openssl rand -base64 32      (local development only)
+#   HASH_PEPPER         any random string of 16+ characters
+#   AUTH_MODE           mock                          (local development only)
+#   CRON_SECRET         optional, 32+ chars, enables the reminder-delivery endpoint
+ln -sf ../../.env apps/web/.env.local                 # lets the web app read the root .env
 
-# 5. Let the web app read the root .env (git-ignored symlink)
-ln -sf ../../.env apps/web/.env.local
+pnpm seed                                             # 10 fictional demo sources, demo user, two demo admins
+pnpm --filter @privatepath/web dev                    # http://localhost:3000
 ```
 
-Never commit `.env`. It is git-ignored. The mock KMS key is for local development only; the config loader
-refuses to start in production if it is set.
+Use `dev`, not `start`: production mode deliberately refuses mock auth and the mock KMS key.
 
-## Running
+If your Postgres user isn't `stevenbui`, update the connection strings in `packages/core/test/*.test.ts` defaults
+(or set `TEST_DATABASE_URL`), `playwright.config.ts`, and `apps/web/e2e/global-setup.ts`.
+
+## Using the app
+
+1. **Sign in.** Open http://localhost:3000 and click *Sign in* (or go to `/dev-login`). Development sign-in takes
+   any fictional identity id. Try `mock_demo-user` after seeding, or invent a new one.
+2. **Onboard.** A new identity is sent to the welcome page: pick a nickname and tick the three required
+   acknowledgements (terms, privacy policy, and "this is my own information"). Marketing email is a separate,
+   unticked option. The consent is recorded with its policy version.
+3. **My Profile.** Only your name is required; everything else is optional and each field explains why it is asked.
+4. **Source Directory / Exposure Assessment.** Browse the reviewed sources (demo entries are labeled *Example*).
+   Open one, read its policy, visit the site yourself, then record *I found my listing / did not / not sure*.
+   You may add the exact link to your own listing; it must be an https address on that source's domain, and you
+   must confirm the listing is about you. PrivatePath never opens it.
+5. **Start a removal request** from a source page, then follow the guided steps on the request page:
+   confirm your listing, choose what to include (email and phone digits are left out unless you tick them),
+   review the exact text, tick the confirmation and **Approve**. Only then can you **Copy** or **Download** it.
+6. **Submit it yourself** on the source's official opt-out page (link provided), then click *I submitted this
+   request*. Add a confirmation reference, private notes, and optional proof (PNG, JPEG, WebP or PDF up to 5 MB),
+   and update the status as the site responds.
+7. **Reminders.** Submitting creates a default 30-day in-app follow-up. Add 7/14/30/60/90-day follow-ups,
+   6- or 12-month re-checks, or custom reminders; mute, reschedule or delete any of them.
+8. **California Privacy Center.** A checklist for the state's official DROP platform. You complete it on the
+   government site; ticking steps here only tracks your own progress.
+9. **Help.** FAQs and a support form. Messages that look like ID or card numbers are refused. A *safety concern*
+   category shows emergency resources; public resources are at `/safety`.
+10. **Account Settings.** *Export my data* downloads everything as JSON. *Delete my account* (type DELETE)
+    permanently removes your data and uploaded files. Neither is ever paywalled.
+
+### Admin and support (API only for now)
+
+There is no admin UI yet. With seeded identities `mock_seed-admin-a` / `mock_seed-admin-b` you can use the admin
+API (see `docs/api.md`): one admin proposes a source or change, a *different* compliance admin approves it. Support
+staff see a redacted case queue; reading a message needs a time-limited grant approved by another admin.
 
 ```bash
-pnpm --filter @privatepath/web dev     # http://localhost:3000 (use dev, not start: production mode refuses mock auth and the mock KMS key by design)
-pnpm --filter @privatepath/web build   # production build check
+U=localhost:3000/api/v1
+A=(-H "x-mock-auth-id: mock_seed-admin-a" -H "x-mock-email: a@example.test" -H "content-type: application/json")
+B=(-H "x-mock-auth-id: mock_seed-admin-b" -H "x-mock-email: b@example.test")
+curl "${A[@]}" $U/admin/sources                                          # list all sources
+curl "${A[@]}" -d '{"difficulty":5}' $U/admin/sources/<id>/versions      # propose a change (live entry untouched)
+curl -X POST "${A[@]}" $U/admin/sources/<id>/versions/2/approve          # refused: proposer can't approve
+curl -X POST "${B[@]}" $U/admin/sources/<id>/versions/2/approve          # approved by a second reviewer
 ```
 
-Pages you can open now:
+### Reminder delivery
 
-- `/` home page, including the "not a people search service" statement
-- `/dashboard` placeholder dashboard (no sign-in yet)
-- `/api/v1/health` returns `{"status":"ok"}`
-
-Trying the API with mock auth (local development only):
+Reminders are delivered by calling a protected endpoint from a scheduler (cron, Inngest, etc.):
 
 ```bash
-H=(-H "x-mock-auth-id: demo1" -H "x-mock-email: demo@example.test" -H "content-type: application/json")
-curl "${H[@]}" -d '{"displayName":"Demo","acceptTerms":true,"acceptPrivacy":true,"authorizeOwnData":true}' localhost:3000/api/v1/auth/signup
-curl "${H[@]}" -d '{"legalFirstName":"Sam","legalLastName":"Sample"}' localhost:3000/api/v1/profile
-curl "${H[@]}" localhost:3000/api/v1/profile
-curl "${H[@]}" -X PATCH -d '{"currentCity":"Sampleville"}' localhost:3000/api/v1/profile
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/v1/internal/process-reminders
 ```
-
-With seed data (`pnpm seed`), the mock identities are `mock_demo-user`, `mock_seed-admin-a` and `mock_seed-admin-b` (send them as `x-mock-auth-id`; any `x-mock-email` value is accepted):
-
-```bash
-U=localhost:3000/api/v1; D=(-H "x-mock-auth-id: mock_demo-user" -H "x-mock-email: demo@example.test" -H "content-type: application/json")
-curl "${D[@]}" $U/sources                                    # reviewed demo sources only
-curl "${D[@]}" -d '{"sourceId":"<id>","status":"FOUND","listingUrl":"https://<source-domain>/p/1","confirmOwnership":true}' $U/listing-reviews
-# Admin: propose a change as admin A, approve as admin B (admin A approving their own change is refused)
-curl -H "x-mock-auth-id: mock_seed-admin-a" -H "x-mock-email: a@example.test" -H "content-type: application/json" -d '{"difficulty":5}' $U/admin/sources/<id>/versions
-curl -X POST -H "x-mock-auth-id: mock_seed-admin-b" -H "x-mock-email: b@example.test" $U/admin/sources/<id>/versions/2/approve
-```
-
-Use fictional data only. Profile values are stored encrypted; audit events record field names, never values.
 
 ## Tests and checks
 
 ```bash
-pnpm test                    # unit tests (crypto, audit, config)
-pnpm exec tsc -p tsconfig.json   # type check
+pnpm test         # 142 unit + integration tests (needs the privatepath_test database)
+pnpm typecheck    # TypeScript
+pnpm e2e          # Playwright end-to-end journey + axe accessibility scans (resets the TEST database, never dev)
+pnpm --filter @privatepath/web build
 ```
 
-`pnpm test` also runs the `packages/core` integration tests, which need a separate database (they empty it between tests, so never point them at dev data; the default is `postgresql://stevenbui@localhost:5432/privatepath_test`, override with `TEST_DATABASE_URL`):
+First time only: `pnpm exec playwright install chromium`.
 
-```bash
-createdb -h localhost privatepath_test
-for m in 0001_init 0002_audit_seq; do
-  psql -h localhost -d privatepath_test -v ON_ERROR_STOP=1 -f packages/db/prisma/migrations/$m/migration.sql
-done
-```
+Integration tests empty the test database between tests; never point `TEST_DATABASE_URL` at data you care about.
 
-## How the finished product is meant to be used
+## What is built
 
-This is the intended flow for the MVP. Most steps are not implemented yet.
+| Area | State |
+|---|---|
+| Marketing site (home, how it works, pricing placeholders, FAQ, security, terms/privacy drafts, contact, safety) | Done |
+| Signup, versioned consent records, onboarding | Done (sign-in itself is a dev stub) |
+| Encrypted profile (AES-256-GCM, per-user keys, AAD-bound) | Done |
+| Source catalog with four-eyes approval and versioning; demo sources | Done (API only, no admin UI) |
+| Listing reviews, strict URL validation | Done |
+| Removal requests: guarded state machine, templates, hash-checked approval gate, evidence | Done |
+| Reminders, notifications, delivery job, re-check recurrence | Done (email via mock adapter) |
+| Dashboard with *estimated* progress and next action | Done |
+| California DROP education + self-tracked checklist | Done |
+| Data export, account deletion (files + key destroyed) | Done |
+| Support, safety resources, redacted staff queue, audited break-glass | Done (staff UI missing) |
+| Rate limiting, security headers, CSRF origin check, audit hash chain | Done (rate limiter is in-memory) |
+| Docs: API, threat model, retention, security checklist, iOS guide, compliance review | Done |
 
-1. **Sign up** and accept the terms, privacy policy, and a statement authorizing processing of your own data.
-2. **Create your profile.** Only your name is required. Aliases, age range, city/state, previous locations, and
-   emails or phone numbers to check are optional, and each is explained. Every sensitive field is encrypted.
-3. **Run the exposure assessment.** Choose which kinds of data concern you, then go through the source
-   directory and mark each source "I found my listing", "I did not find it", or "I'm not sure". You search the
-   source's own site yourself; PrivatePath does not search for you.
-4. **Create a removal request** for a source: review its policy, confirm the listing is yours, choose what to
-   remove, review the generated text, and approve it. Copying or downloading is blocked until you approve.
-5. **Submit it yourself** through the source's official opt-out page or by email.
-6. **Record the outcome**: date, confirmation reference, and optional proof. Set follow-up reminders at
-   7, 14, 30, 60, or 90 days, and a 6- or 12-month re-check.
-7. **California residents** can follow the checklist for the official state DROP platform. You complete it
-   directly on the government site; PrivatePath never submits it or handles your government login.
-8. **Export or delete** your data at any time from Account Settings. Deletion is never behind a paywall.
+## Not done yet
 
-## Safety rules built into the design
-
-- No endpoint searches by name, phone, email, or address.
-- The server never makes requests to third-party broker sites or to user-submitted URLs.
-- Support staff see redacted values only. Admins cannot search users by personal attributes; account access
-  needs a support case and a time-limited, audited grant.
-- Logs, audit metadata, and error responses never contain personal data (audit metadata uses an allowlist).
-- Demo sources use fictional `.test` domains and make no claim to be current or accurate.
+- **Real authentication** (Clerk: email verification, passwordless, OAuth, passkeys/MFA). Today's sign-in is a
+  development stub and is refused in production.
+- Production adapters: managed KMS, S3/R2 storage, real email provider, shared rate-limit store.
+- Admin/support web UI; billing (Stripe test mode); push notifications; OpenAPI generation.
+- Clerk-account deletion on account delete; audit-log retention purge.
+- Attorney review of all legal and compliance content; real source catalog review.
+- Full production checklist: `docs/security-checklist.md`.
 
 ## Layout
 
 ```
-apps/web/             Next.js app (marketing site, app shell, /api/v1 routes)
-packages/core         domain services (signup/consent, profile, audit writer)
-packages/crypto       AES-256-GCM field encryption, key wrapping, keyed hashing
+apps/web/             Next.js app: marketing site, app screens, /api/v1 routes, Playwright tests
+packages/core         domain services (all business rules)
+packages/crypto       field/file encryption, key wrapping, keyed hashing
 packages/audit        audit redaction and hash chain
+packages/adapters     storage, email, rate-limit adapters (memory/local implementations)
 packages/config       environment validation
-packages/db           Prisma schema and migrations
-docs/                 PRD, architecture, compliance review
+packages/db           Prisma schema and SQL migrations
+scripts/seed.mts      fictional demo data
+docs/                 PRD, architecture, API, threat model, retention, security checklist, iOS guide, compliance review
 ```
 
 ## Troubleshooting
 
-- **`createdb` or `psql` asks for a password or fails to connect:** add credentials to `DATABASE_URL` and the
-  commands (`psql postgresql://user:pass@localhost/privatepath_dev`), or check Postgres is running with `pg_isready`.
-- **`type "Role" already exists`:** that migration was already applied to this database. Skip it.
-- **pnpm says it ignored build scripts:** expected; nothing here depends on them.
-- **Changed `schema.prisma`:** add a new numbered migration SQL file and re-run `pnpm --filter @privatepath/db generate`.
+- **`type "Role" already exists`:** that migration was already applied; skip it.
+- **`User was denied access on the database`:** put your Postgres username in the connection URL.
+- **Server errors on every request:** read the terminal running `next dev`; configuration problems name the missing
+  variable. Confirm `apps/web/.env.local` exists (the symlink step).
+- **Changed `schema.prisma`:** add a numbered SQL migration, apply it to both databases, and re-run `pnpm --filter @privatepath/db generate`.

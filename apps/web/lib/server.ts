@@ -5,6 +5,7 @@ import { authenticate, toErrorResponse, type Deps, type RequestContext, type Ses
 import { createPrisma } from "@privatepath/db";
 import { ConsoleEmail, LocalDiskStorage, MemoryRateLimiter } from "@privatepath/adapters";
 import path from "node:path";
+import { AppError } from "@privatepath/core";
 
 const MAX_BODY_BYTES = 32_000;
 
@@ -23,6 +24,33 @@ const tooMany = (retryAfterSec: number) => Response.json(
   { status: 429, headers: { "Retry-After": String(retryAfterSec), "Cache-Control": "no-store" } });
 
 let cached: { deps: Deps; authMode: "mock" | "clerk"; cronSecret?: string } | undefined;
+
+export const MOCK_COOKIE = "pp_mock";
+
+/** Parses the dev-login cookie ("id|email", URL-encoded). Only ever honored when AUTH_MODE=mock. */
+export function parseMockCookie(raw: string | null | undefined): Session | null {
+  const m = raw?.split(/;\s*/).find((c) => c.startsWith(`${MOCK_COOKIE}=`));
+  if (!m) return null;
+  const [id, email] = decodeURIComponent(m.slice(MOCK_COOKIE.length + 1)).split("|");
+  return id && email ? { authProviderId: id, email } : null;
+}
+
+/** Header auth (API clients) first; in mock mode, fall back to the dev cookie with an origin check against CSRF. */
+function resolveSession(req: Request, mode: "mock" | "clerk"): Session {
+  try {
+    return authenticate(req.headers, mode);
+  } catch (e) {
+    const cookieSession = mode === "mock" ? parseMockCookie(req.headers.get("cookie")) : null;
+    if (!cookieSession) throw e;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      const origin = req.headers.get("origin");
+      let ok = false;
+      try { ok = !!origin && new URL(origin).host === req.headers.get("host"); } catch { /* invalid origin */ }
+      if (!ok) throw new AppError(403, "bad_origin", "This request couldn't be verified. Please reload the page and try again.");
+    }
+    return cookieSession;
+  }
+}
 
 export function getServerDeps() {
   if (cached) return cached;
@@ -55,7 +83,7 @@ export function handle(fn: (a: { deps: Deps; session: Session; ctx: RequestConte
       // Throttle by address before doing any auth work, so floods of anonymous requests are cheap to refuse.
       const pre = await limiter.hit(`ip:${clientIp(req)}:${lim.name ?? "all"}`, lim.max * 2, lim.windowMs);
       if (!pre.allowed) return tooMany(pre.retryAfterSec);
-      const session = authenticate(req.headers, authMode);
+      const session = resolveSession(req, authMode);
       const post = await limiter.hit(`user:${session.authProviderId}:${lim.name ?? "all"}`, lim.max, lim.windowMs);
       if (!post.allowed) return tooMany(post.retryAfterSec);
       const ctx: RequestContext = {

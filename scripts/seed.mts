@@ -47,7 +47,7 @@ for (const [name, category, verificationMethod, difficulty, sourceStatus] of CAT
   const s = await adminCreateSource(deps, adminA, {
     name, domain, category, verificationMethod, difficulty, sourceStatus,
     officialOptOutUrl: `https://${domain}/opt-out`,
-    instructionsMarkdown: "**Demo entry.** This is a fictional example, not a real service. Instructions are placeholders and are not verified as current.",
+    instructionsMarkdown: "Demo entry. This is a fictional example, not a real service. Instructions are placeholders and are not verified as current.",
     lastReviewedAt: new Date().toISOString(),
   });
   await adminApproveVersion(deps, adminB, s.id, 1);
