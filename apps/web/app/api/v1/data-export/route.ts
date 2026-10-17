@@ -1,5 +1,5 @@
 import { exportData } from "@privatepath/core";
-import { handle } from "@/lib/server";
+import { handle, strict } from "@/lib/server";
 
 export const POST = handle(async ({ deps, session, ctx }) => {
   const data = await exportData(deps, session, ctx);
@@ -8,4 +8,4 @@ export const POST = handle(async ({ deps, session, ctx }) => {
     "Content-Disposition": 'attachment; filename="privatepath-export.json"',
     "Cache-Control": "no-store",
   } });
-});
+}, 200, strict("data-export"));

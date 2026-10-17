@@ -15,3 +15,15 @@ Status: DRAFT — nothing here is legal advice. Every item requires counsel sign
 | Source catalog | Demo sources only; no accuracy claims | Wording for real sources before publishing |
 | Terms/Privacy | Placeholder pages | Full drafting |
 | Accessibility | WCAG 2.2 AA target | Audit |
+
+## Additional items added during build
+| Area | Claim / assumption | Needs review |
+|---|---|---|
+| California DROP content | Summary, checklist and links on `privacy.ca.gov/drop/` and `consumer.drop.privacy.ca.gov`, last checked 2026-10-17 | Accuracy, eligibility wording, how timelines are described (the app deliberately gives no dates) |
+| Consent | Three required acknowledgements recorded with policy version, timestamp, hashed IP / user agent | Wording of the "authorize processing of my own data" statement; version scheme; whether proof of consent must survive account deletion |
+| Draft templates | Neutral wording ("removal or suppression", "opt-out", "deletion"); personal details only if the user opts in | Whether to cite statutes; wording per request type |
+| Reminder email | Treated as transactional; postal-address placeholder in footer | CAN-SPAM classification, sender identity, whether unsubscribe is required for transactional reminders |
+| Safety resources | 911, National Domestic Violence Hotline, SPARC link | Accuracy, international coverage, domain-expert review |
+| Support policy | Never ask for government ID; blocks ID/card-like numbers in messages | Wording |
+| Data export / deletion | Immediate hard delete; audit events retained with opaque ids | Retention periods, consent-record retention, backup window (`docs/retention-schedule.md`) |
+| "Not a data broker" | Service holds only data the user enters about themselves | Whether any state registration or definition could still apply |
