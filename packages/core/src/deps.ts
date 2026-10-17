@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@privatepath/db";
 import type { KmsAdapter } from "@privatepath/crypto";
-import type { StorageAdapter } from "@privatepath/adapters";
+import type { EmailAdapter, StorageAdapter } from "@privatepath/adapters";
 
 export interface Deps {
   db: PrismaClient;
@@ -8,6 +8,10 @@ export interface Deps {
   hashPepper: string;
   /** Evidence file storage. Absent in contexts that do not handle files. */
   storage?: StorageAdapter;
+  /** Transactional email. Absent: EMAIL reminders are delivered in-app only. */
+  email?: EmailAdapter;
+  /** Public base URL used in links inside emails. */
+  appUrl?: string;
   /** Require an MFA-verified session for admin roles (always true outside local development). */
   requireAdminMfa?: boolean;
 }

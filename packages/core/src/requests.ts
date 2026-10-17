@@ -85,14 +85,14 @@ async function reload(deps: Deps, userId: string, id: string) {
 }
 
 /** Atomically moves a request to a new status (guarded on the current one), recording history and audit. */
-async function moveStatus(tx: Prisma.TransactionClient, deps: Deps, ctx: RequestContext, userId: string, r: { id: string; status: RequestStatus },
-  to: RequestStatus, data: Prisma.RemovalRequestUncheckedUpdateManyInput = {}) {
+export async function moveStatus(tx: Prisma.TransactionClient, deps: Deps, ctx: RequestContext, userId: string, r: { id: string; status: RequestStatus },
+  to: RequestStatus, data: Prisma.RemovalRequestUncheckedUpdateManyInput = {}, actorId: string | null = userId) {
   if (r.status !== to && !canTransition(r.status, to)) throw new AppError(409, "invalid_transition", "That change isn't possible from the current status.");
   const res = await tx.removalRequest.updateMany({ where: { id: r.id, userId, status: r.status }, data: { ...data, status: to } });
   if (res.count !== 1) throw new AppError(409, "conflict", "This request changed in the meantime. Please reload and try again.");
   if (r.status !== to) {
     await tx.requestStatusHistory.create({ data: { requestId: r.id, fromStatus: r.status, toStatus: to } });
-    await writeAudit(tx, deps, ctx, { actorUserId: userId, targetUserId: userId, eventType: "REQUEST_STATUS_CHANGED",
+    await writeAudit(tx, deps, ctx, { actorUserId: actorId, targetUserId: userId, eventType: "REQUEST_STATUS_CHANGED",
       entityType: TABLE, entityId: r.id, metadata: { fromStatus: r.status, toStatus: to } });
   }
 }
@@ -259,6 +259,9 @@ export async function markSubmitted(deps: Deps, session: Session, id: string, ra
   const expectedResponseAt = new Date(submittedAt.getTime() + input.expectedResponseDays * DAY);
   await deps.db.$transaction(async (tx) => {
     await moveStatus(tx, deps, ctx, user.id, r, "SUBMITTED_BY_USER", { userSubmittedAt: submittedAt, expectedResponseAt, followUpAt: expectedResponseAt });
+    // Default in-app follow-up; users can change or delete it.
+    await tx.reminder.create({ data: { userId: user.id, removalRequestId: id, type: "FOLLOWUP_30", channel: "IN_APP",
+      scheduledFor: new Date(submittedAt.getTime() + 30 * DAY) } });
     await writeAudit(tx, deps, ctx, { actorUserId: user.id, targetUserId: user.id, eventType: "REQUEST_SUBMISSION_RECORDED",
       entityType: TABLE, entityId: id, metadata: { format: input.method } });
   });

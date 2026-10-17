@@ -31,3 +31,25 @@ export class LocalDiskStorage implements StorageAdapter {
   async get(key: string) { return readFile(this.file(key)); }
   async delete(key: string) { await rm(this.file(key), { force: true }); }
 }
+
+export interface EmailMessage { to: string; subject: string; text: string }
+
+/** Transactional email. Production: Resend/Postmark. */
+export interface EmailAdapter {
+  send(msg: EmailMessage): Promise<void>;
+}
+
+/** Records messages in memory (tests). */
+export class MemoryEmail implements EmailAdapter {
+  readonly outbox: EmailMessage[] = [];
+  failNext = false;
+  async send(msg: EmailMessage) {
+    if (this.failNext) { this.failNext = false; throw new Error("send failed"); }
+    this.outbox.push(msg);
+  }
+}
+
+/** Development adapter: logs that a message was queued, never its recipient or content. */
+export class ConsoleEmail implements EmailAdapter {
+  async send(_msg: EmailMessage) { console.log("[mock-email] message queued"); }
+}

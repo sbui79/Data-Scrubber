@@ -7,6 +7,9 @@ const schema = z.object({
   MOCK_KMS_MASTER_KEY: z.string().optional(),
   HASH_PEPPER: z.string().min(16),
   AUTH_MODE: z.enum(["mock", "clerk"]).default("mock"),
+  /** Shared secret for the scheduler that calls the reminder-delivery endpoint. Unset = endpoint disabled. */
+  CRON_SECRET: z.string().min(32).optional(),
+  APP_URL: z.string().url().default("http://localhost:3000"),
   CLERK_SECRET_KEY: z.string().optional(),
   FEATURE_MFA: z.coerce.boolean().default(false),
   FEATURE_FAMILY_MANAGER: z.coerce.boolean().default(false),
