@@ -6,3 +6,10 @@ allowBuilds:
   '@prisma/engines': true
   esbuild: true
   prisma: true
+
+# Force patched versions of transitive dependencies flagged by `pnpm audit`.
+overrides:
+  postcss: ">=8.5.18"
+  deepmerge-ts: ">=8.0.0"
+  vite: ">=6.4.3"
+  tinypool: ">=2.1.2"
