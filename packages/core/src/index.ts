@@ -16,3 +16,4 @@ export * from "./dashboard";
 export * from "./california";
 export * from "./support";
 export * from "./account";
+export * from "./metrics";

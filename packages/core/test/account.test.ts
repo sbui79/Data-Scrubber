@@ -173,3 +173,29 @@ describe("support", () => {
     expect(await statusOf(staffListCases({ ...deps, requireAdminMfa: true }, { ...support, mfa: true }))).toBe(200);
   });
 });
+
+import { adminListSources, adminMetrics, adminProposeUpdate, suppress } from "../src";
+
+describe("admin metrics and listing", () => {
+  it("suppresses small counts and exposes no per-user data", async () => {
+    expect(suppress(0)).toBe("<5");
+    expect(suppress(4)).toBe("<5");
+    expect(suppress(5)).toBe("5");
+    await populate(alice, "alice");
+    const m = await adminMetrics(deps, support);
+    expect(m.accounts.total).toBe("5");
+    expect(m.requestsByStatus).toEqual({ SUBMITTED_BY_USER: "<5" });
+    const json = JSON.stringify(m);
+    expect(json).not.toMatch(/alice|Firstalice|example-alice/);
+    expect(await statusOf(adminMetrics(deps, alice))).toBe(403);
+  });
+  it("shows pending changes to admins, flagged when proposed by the viewer", async () => {
+    await populate(alice, "alice");
+    const src = (await adminListSources(deps, adminA))[0]!;
+    await adminProposeUpdate(deps, adminA, src.id, { difficulty: 4 });
+    const mine = (await adminListSources(deps, adminA))[0]!;
+    expect(mine.pending).toMatchObject([{ version: 2, proposedByYou: true, snapshot: { difficulty: 4 } }]);
+    expect((await adminListSources(deps, adminB))[0]!.pending[0]!.proposedByYou).toBe(false);
+    expect(await statusOf(adminListSources(deps, support))).toBe(403);
+  });
+});

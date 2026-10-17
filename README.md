@@ -70,11 +70,13 @@ If your Postgres user isn't `stevenbui`, update the connection strings in `packa
 10. **Account Settings.** *Export my data* downloads everything as JSON. *Delete my account* (type DELETE)
     permanently removes your data and uploaded files. Neither is ever paywalled.
 
-### Admin and support (API only for now)
+### Admin and support
 
-There is no admin UI yet. With seeded identities `mock_seed-admin-a` / `mock_seed-admin-b` you can use the admin
-API (see `docs/api.md`): one admin proposes a source or change, a *different* compliance admin approves it. Support
-staff see a redacted case queue; reading a message needs a time-limited grant approved by another admin.
+Sign in as `mock_seed-admin-a` or `mock_seed-admin-b` (after `pnpm seed`) and open `/admin` (anyone else gets a 404).
+Overview shows aggregate counts only (anything under 5 is hidden). *Sources*: one admin proposes a source or change, a
+*different* compliance admin approves it before customers see it. *Support*: the queue shows category and subject only;
+reading a message needs a time-limited grant approved by another admin, and every view is logged. The same actions are
+available through the API (`docs/api.md`):
 
 ```bash
 U=localhost:3000/api/v1
@@ -97,7 +99,7 @@ curl -X POST -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/v1/inter
 ## Tests and checks
 
 ```bash
-pnpm test         # 142 unit + integration tests (needs the privatepath_test database)
+pnpm test         # 144 unit + integration tests (needs the privatepath_test database)
 pnpm typecheck    # TypeScript
 pnpm e2e          # Playwright end-to-end journey + axe accessibility scans (resets the TEST database, never dev)
 pnpm --filter @privatepath/web build
@@ -114,14 +116,14 @@ Integration tests empty the test database between tests; never point `TEST_DATAB
 | Marketing site (home, how it works, pricing placeholders, FAQ, security, terms/privacy drafts, contact, safety) | Done |
 | Signup, versioned consent records, onboarding | Done (sign-in itself is a dev stub) |
 | Encrypted profile (AES-256-GCM, per-user keys, AAD-bound) | Done |
-| Source catalog with four-eyes approval and versioning; demo sources | Done (API only, no admin UI) |
+| Source catalog with four-eyes approval and versioning; demo sources | Done (API + admin screens) |
 | Listing reviews, strict URL validation | Done |
 | Removal requests: guarded state machine, templates, hash-checked approval gate, evidence | Done |
 | Reminders, notifications, delivery job, re-check recurrence | Done (email via mock adapter) |
 | Dashboard with *estimated* progress and next action | Done |
 | California DROP education + self-tracked checklist | Done |
 | Data export, account deletion (files + key destroyed) | Done |
-| Support, safety resources, redacted staff queue, audited break-glass | Done (staff UI missing) |
+| Support, safety resources, redacted staff queue, audited break-glass | Done (API + admin screens) |
 | Rate limiting, security headers, CSRF origin check, audit hash chain | Done (rate limiter is in-memory) |
 | Docs: API, threat model, retention, security checklist, iOS guide, compliance review | Done |
 
@@ -130,7 +132,7 @@ Integration tests empty the test database between tests; never point `TEST_DATAB
 - **Real authentication** (Clerk: email verification, passwordless, OAuth, passkeys/MFA). Today's sign-in is a
   development stub and is refused in production.
 - Production adapters: managed KMS, S3/R2 storage, real email provider, shared rate-limit store.
-- Admin/support web UI; billing (Stripe test mode); push notifications; OpenAPI generation.
+- Billing (Stripe test mode); push notifications; OpenAPI generation.
 - Clerk-account deletion on account delete; audit-log retention purge.
 - Attorney review of all legal and compliance content; real source catalog review.
 - Full production checklist: `docs/security-checklist.md`.

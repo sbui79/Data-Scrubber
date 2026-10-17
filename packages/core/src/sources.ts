@@ -128,8 +128,17 @@ export async function adminApproveVersion(deps: Deps, session: Session, sourceId
 }
 
 export async function adminListSources(deps: Deps, session: Session) {
-  await requireRole(deps, session, ADMIN_ROLES);
-  const rows = await deps.db.source.findMany({ orderBy: { name: "asc" }, include: { versions: { select: { version: true, approvedByAdminId: true }, orderBy: { version: "asc" } } } });
-  return rows.map((s) => ({ ...publicView(s), published: s.publishedAt !== null,
-    versions: s.versions.map((v) => ({ version: v.version, approved: v.approvedByAdminId !== null })) }));
+  const viewer = await requireRole(deps, session, ADMIN_ROLES);
+  const rows = await deps.db.source.findMany({ orderBy: { name: "asc" }, include: { versions: { orderBy: { version: "asc" } } } });
+  return rows.map((s) => ({
+    ...publicView(s), published: s.publishedAt !== null,
+    versions: s.versions.map((v) => ({ version: v.version, approved: v.approvedByAdminId !== null })),
+    // Changes awaiting a second reviewer. Catalog content only, no personal data.
+    pending: s.versions.filter((v) => v.approvedByAdminId === null).map((v) => {
+      const snap = v.snapshot as unknown as Snapshot;
+      return { version: v.version, proposedByYou: v.createdByAdminId === viewer.id,
+        snapshot: { name: snap.name, category: snap.category, officialOptOutUrl: snap.officialOptOutUrl, instructionsMarkdown: snap.instructionsMarkdown,
+          verificationMethod: snap.verificationMethod, difficulty: snap.difficulty, sourceStatus: snap.sourceStatus } };
+    }),
+  }));
 }

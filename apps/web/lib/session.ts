@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Session } from "@privatepath/core";
 import { getServerDeps, MOCK_COOKIE, parseMockCookie } from "./server";
 
@@ -21,4 +21,11 @@ export async function requireOnboarded() {
   const user = await deps.db.user.findUnique({ where: { authProviderId: session.authProviderId } });
   if (!user || user.deletedAt) redirect("/onboarding");
   return { deps, session, user };
+}
+
+/** For the staff area. Non-staff get a plain 404 so the area isn't advertised. */
+export async function requireStaff() {
+  const ctx = await requireOnboarded();
+  if (!["SUPPORT", "COMPLIANCE_ADMIN", "SYSTEM_ADMIN"].includes(ctx.user.role)) notFound();
+  return ctx;
 }

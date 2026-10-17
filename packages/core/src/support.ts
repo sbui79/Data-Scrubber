@@ -130,3 +130,10 @@ export async function staffReadCaseMessage(deps: Deps, session: Session, caseId:
     entityType: "SupportCase", entityId: c.id, metadata: { supportCaseId: c.id } }));
   return { id: c.id, category: c.category, subject: c.subject, message };
 }
+
+/** Staff directory (staff only, never customers) so a compliance admin can pick who to grant access to. */
+export async function listStaff(deps: Deps, session: Session) {
+  await requireRole(deps, session, ["COMPLIANCE_ADMIN"]);
+  const rows = await deps.db.user.findMany({ where: { role: { in: STAFF } }, orderBy: { createdAt: "asc" } });
+  return rows.map((u) => ({ id: u.id, nickname: u.displayName, role: u.role }));
+}
