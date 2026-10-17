@@ -2,13 +2,17 @@ import "server-only";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { Session } from "@privatepath/core";
-import { getServerDeps, MOCK_COOKIE, parseMockCookie } from "./server";
+import { CLERK_COOKIE, getServerDeps, MOCK_COOKIE, parseMockCookie, sessionFromClerkToken } from "./server";
 
 /** Signed-in session for server-rendered pages. Until Clerk is wired up this is the dev-login cookie (mock mode only). */
 export async function currentSession(): Promise<Session | null> {
-  const { authMode } = getServerDeps();
-  if (authMode !== "mock") return null;
+  const { authMode, clerk } = getServerDeps();
   const jar = await cookies();
+  if (authMode === "clerk") {
+    const token = jar.get(CLERK_COOKIE)?.value;
+    if (!token) return null;
+    return sessionFromClerkToken(token, clerk!).catch(() => null);
+  }
   const v = jar.get(MOCK_COOKIE)?.value;
   return parseMockCookie(v ? `${MOCK_COOKIE}=${v}` : null);
 }
@@ -17,7 +21,7 @@ export async function currentSession(): Promise<Session | null> {
 export async function requireOnboarded() {
   const { deps } = getServerDeps();
   const session = await currentSession();
-  if (!session) redirect("/dev-login");
+  if (!session) redirect(getServerDeps().authMode === "mock" ? "/dev-login" : "/");
   const user = await deps.db.user.findUnique({ where: { authProviderId: session.authProviderId } });
   if (!user || user.deletedAt) redirect("/onboarding");
   return { deps, session, user };

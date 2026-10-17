@@ -11,6 +11,10 @@ const schema = z.object({
   CRON_SECRET: z.string().min(32).optional(),
   APP_URL: z.string().url().default("http://localhost:3000"),
   CLERK_SECRET_KEY: z.string().optional(),
+  /** PEM public key for networkless token verification (alternative to CLERK_SECRET_KEY). */
+  CLERK_JWT_KEY: z.string().optional(),
+  /** Comma-separated app origins allowed in the token `azp` claim. Required in production. */
+  CLERK_AUTHORIZED_PARTIES: z.string().optional(),
   FEATURE_MFA: z.coerce.boolean().default(false),
   FEATURE_FAMILY_MANAGER: z.coerce.boolean().default(false),
   FEATURE_EMAIL_SENDING: z.coerce.boolean().default(false),
@@ -30,6 +34,10 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
   }
   if (env.data.NODE_ENV === "production" && env.data.AUTH_MODE === "mock") {
     throw new Error("Invalid environment: AUTH_MODE=mock is not allowed in production");
+  }
+  if (env.data.AUTH_MODE === "clerk") {
+    if (!env.data.CLERK_SECRET_KEY && !env.data.CLERK_JWT_KEY) throw new Error("Invalid environment: CLERK_SECRET_KEY, CLERK_JWT_KEY");
+    if (env.data.NODE_ENV === "production" && !env.data.CLERK_AUTHORIZED_PARTIES) throw new Error("Invalid environment: CLERK_AUTHORIZED_PARTIES");
   }
   return env.data;
 }

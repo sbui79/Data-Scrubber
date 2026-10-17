@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Onboarding() {
   const session = await currentSession();
-  if (!session) redirect("/dev-login");
+  if (!session) redirect(getServerDeps().authMode === "mock" ? "/dev-login" : "/");
   const user = await getServerDeps().deps.db.user.findUnique({ where: { authProviderId: session.authProviderId } });
   if (user) redirect("/dashboard");
   return (

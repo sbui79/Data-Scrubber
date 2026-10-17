@@ -19,4 +19,10 @@ describe("loadEnv", () => {
   it("forbids mock auth in production", () => {
     expect(() => loadEnv({ ...ok, NODE_ENV: "production" })).toThrow("AUTH_MODE");
   });
+  it("clerk mode needs a verification key, and authorized parties in production", () => {
+    expect(() => loadEnv({ ...ok, AUTH_MODE: "clerk" })).toThrow("CLERK_SECRET_KEY");
+    expect(loadEnv({ ...ok, AUTH_MODE: "clerk", CLERK_JWT_KEY: "pem" }).AUTH_MODE).toBe("clerk");
+    expect(() => loadEnv({ ...ok, AUTH_MODE: "clerk", CLERK_JWT_KEY: "pem", NODE_ENV: "production" })).toThrow("CLERK_AUTHORIZED_PARTIES");
+    expect(loadEnv({ ...ok, AUTH_MODE: "clerk", CLERK_JWT_KEY: "pem", NODE_ENV: "production", CLERK_AUTHORIZED_PARTIES: "https://app.example.test" }).NODE_ENV).toBe("production");
+  });
 });

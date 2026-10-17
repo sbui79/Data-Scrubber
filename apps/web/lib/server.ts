@@ -3,7 +3,7 @@ import { loadEnv } from "@privatepath/config";
 import { MockKms } from "@privatepath/crypto";
 import { authenticate, toErrorResponse, type Deps, type RequestContext, type Session } from "@privatepath/core";
 import { createPrisma } from "@privatepath/db";
-import { ConsoleEmail, LocalDiskStorage, MemoryRateLimiter } from "@privatepath/adapters";
+import { ConsoleEmail, LocalDiskStorage, MemoryRateLimiter, verifyClerkToken, type ClerkVerifyOptions } from "@privatepath/adapters";
 import path from "node:path";
 import { AppError } from "@privatepath/core";
 
@@ -23,7 +23,7 @@ const tooMany = (retryAfterSec: number) => Response.json(
   { error: { code: "rate_limited", message: "Too many requests. Please wait a moment and try again." } },
   { status: 429, headers: { "Retry-After": String(retryAfterSec), "Cache-Control": "no-store" } });
 
-let cached: { deps: Deps; authMode: "mock" | "clerk"; cronSecret?: string } | undefined;
+let cached: { deps: Deps; authMode: "mock" | "clerk"; cronSecret?: string; clerk?: ClerkVerifyOptions } | undefined;
 
 export const MOCK_COOKIE = "pp_mock";
 
@@ -35,19 +35,47 @@ export function parseMockCookie(raw: string | null | undefined): Session | null 
   return id && email ? { authProviderId: id, email } : null;
 }
 
-/** Header auth (API clients) first; in mock mode, fall back to the dev cookie with an origin check against CSRF. */
-function resolveSession(req: Request, mode: "mock" | "clerk"): Session {
+export const CLERK_COOKIE = "__session";
+
+const cookieValue = (header: string | null | undefined, name: string) =>
+  header?.split(/;\s*/).find((c) => c.startsWith(`${name}=`))?.slice(name.length + 1);
+
+/** Browser cookies are ambient credentials, so state-changing requests must come from our own origin (CSRF). */
+function assertSameOrigin(req: Request) {
+  if (req.method === "GET" || req.method === "HEAD") return;
+  const origin = req.headers.get("origin");
+  let ok = false;
+  try { ok = !!origin && new URL(origin).host === req.headers.get("host"); } catch { /* invalid origin */ }
+  if (!ok) throw new AppError(403, "bad_origin", "This request couldn't be verified. Please reload the page and try again.");
+}
+
+/** Verifies a Clerk session token and maps it to a Session. Any failure is a plain 401 with no detail. */
+export async function sessionFromClerkToken(token: string, opts: ClerkVerifyOptions): Promise<Session> {
+  const unauth = new AppError(401, "unauthenticated", "Please sign in to continue.");
+  let id;
+  try { id = await verifyClerkToken(token, opts); } catch { throw unauth; }
+  if (!id.email) throw unauth; // session token must be customized to include the email claim (see docs/deployment.md)
+  return { authProviderId: id.subject, email: id.email, mfa: id.mfa };
+}
+
+/**
+ * Resolves the caller. API clients send a bearer token (or, in mock mode, x-mock-* headers). The web app uses a
+ * session cookie, which also requires a same-origin check on writes.
+ */
+async function resolveSession(req: Request, cfg: { authMode: "mock" | "clerk"; clerk?: ClerkVerifyOptions }): Promise<Session> {
+  if (cfg.authMode === "clerk") {
+    const bearer = req.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+    if (bearer) return sessionFromClerkToken(bearer, cfg.clerk!);
+    const cookie = cookieValue(req.headers.get("cookie"), CLERK_COOKIE);
+    if (cookie) { assertSameOrigin(req); return sessionFromClerkToken(cookie, cfg.clerk!); }
+    throw new AppError(401, "unauthenticated", "Please sign in to continue.");
+  }
   try {
-    return authenticate(req.headers, mode);
+    return authenticate(req.headers, "mock");
   } catch (e) {
-    const cookieSession = mode === "mock" ? parseMockCookie(req.headers.get("cookie")) : null;
+    const cookieSession = parseMockCookie(req.headers.get("cookie"));
     if (!cookieSession) throw e;
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      const origin = req.headers.get("origin");
-      let ok = false;
-      try { ok = !!origin && new URL(origin).host === req.headers.get("host"); } catch { /* invalid origin */ }
-      if (!ok) throw new AppError(403, "bad_origin", "This request couldn't be verified. Please reload the page and try again.");
-    }
+    assertSameOrigin(req);
     return cookieSession;
   }
 }
@@ -58,6 +86,7 @@ export function getServerDeps() {
   if (!env.MOCK_KMS_MASTER_KEY) throw new Error("Invalid environment: MOCK_KMS_MASTER_KEY");
   cached = {
     authMode: env.AUTH_MODE,
+    clerk: env.AUTH_MODE === "clerk" ? { jwtKey: env.CLERK_JWT_KEY?.replace(/\\n/g, "\n"), secretKey: env.CLERK_SECRET_KEY, authorizedParties: env.CLERK_AUTHORIZED_PARTIES?.split(",").map((s) => s.trim()).filter(Boolean) } : undefined,
     cronSecret: env.CRON_SECRET,
     deps: {
       db: createPrisma(env.DATABASE_URL),
@@ -78,12 +107,12 @@ export function getServerDeps() {
 export function handle(fn: (a: { deps: Deps; session: Session; ctx: RequestContext; body: () => Promise<unknown>; params: Record<string, string>; req: Request }) => Promise<unknown>, successStatus = 200, limit?: Limit) {
   return async (req: Request, route: { params: Promise<Record<string, string>> }): Promise<Response> => {
     try {
-      const { deps, authMode } = getServerDeps();
+      const { deps, authMode, clerk } = getServerDeps();
       const lim = limit ?? (req.method === "GET" ? DEFAULT_READ : DEFAULT_WRITE);
       // Throttle by address before doing any auth work, so floods of anonymous requests are cheap to refuse.
       const pre = await limiter.hit(`ip:${clientIp(req)}:${lim.name ?? "all"}`, lim.max * 2, lim.windowMs);
       if (!pre.allowed) return tooMany(pre.retryAfterSec);
-      const session = resolveSession(req, authMode);
+      const session = await resolveSession(req, { authMode, clerk });
       const post = await limiter.hit(`user:${session.authProviderId}:${lim.name ?? "all"}`, lim.max, lim.windowMs);
       if (!post.allowed) return tooMany(post.retryAfterSec);
       const ctx: RequestContext = {

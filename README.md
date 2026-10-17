@@ -130,8 +130,9 @@ Integration tests empty the test database between tests; never point `TEST_DATAB
 
 ## Not done yet
 
-- **Real authentication** (Clerk: email verification, passwordless, OAuth, passkeys/MFA). Today's sign-in is a
-  development stub and is refused in production.
+- **Sign-in UI** (Clerk components: email verification, passwordless, OAuth, passkeys/MFA). The API already verifies
+  Clerk tokens (`AUTH_MODE=clerk`, see `docs/deployment.md`) but has only been tested with locally signed tokens;
+  today's browser sign-in is a development stub that is refused in production.
 - Production adapters: managed KMS, S3/R2 storage, real email provider, shared rate-limit store.
 - Billing (Stripe test mode); push notifications; OpenAPI generation.
 - Clerk-account deletion on account delete; audit-log retention purge.

@@ -3,12 +3,13 @@
 Status key: [x] done and tested · [~] partly done · [ ] not done
 
 ## Identity and access
-- [ ] Clerk JWT verification wired into `authenticate` (`AUTH_MODE=clerk`); mock mode impossible in production [x config refuses]
-- [ ] MFA required for admin/staff (code enforces via `session.mfa`; needs the Clerk claim mapped)
+- [x] Clerk JWT verification (signature, expiry, authorized party, email claim) with `AUTH_MODE=clerk`; mock mode impossible in production
+- [ ] Clerk sign-in/up UI in the web app; remove dev-login routes
+- [x] MFA required for admin/staff in production (`session.mfa` from the token's `fva` claim; verified only with locally signed test tokens)
 - [ ] Passkeys / MFA for regular users (feature flag exists, off)
 - [x] Role checks on all admin/staff routes; four-eyes for catalog and access grants
 - [x] Ownership enforced inside every user-data query (isolation tests)
-- [ ] Origin/CSRF check if cookie sessions are used
+- [x] Same-origin check on cookie-authenticated writes (bearer-token clients are unaffected)
 
 ## Data protection
 - [x] Field-level AES-256-GCM, AAD-bound; per-user keys wrapped by KMS
@@ -25,7 +26,8 @@ Status key: [x] done and tested · [~] partly done · [ ] not done
 - [x] Rate limiting [~ in-memory]
 - [ ] Bot protection on signup/support
 - [x] Upload hardening
-- [ ] Dependency audit (`pnpm audit`) and Renovate/Dependabot; secret scanning in CI
+- [x] `pnpm audit` in CI (high severity gate; 2 moderate Vitest dev-tool advisories remain)
+- [ ] Renovate/Dependabot; secret scanning in CI
 - [ ] Remove `console.error` class-name logging or route to structured logger
 
 ## Operations

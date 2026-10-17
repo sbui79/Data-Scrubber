@@ -24,8 +24,7 @@
 | E2 | Self-approval of catalog changes | Service rule + DB CHECK constraint | `catalog` tests; migration check |
 
 ## Known gaps (not yet mitigated)
-- Real authentication (Clerk JWT verification, MFA claim) is not wired up; mock auth is development-only.
-- CSRF: cookie sessions are not yet in use; when Clerk cookies are enabled, add an origin check on mutating routes (bearer-token clients are not exposed).
+- The Clerk sign-in UI is not built; mock auth is development-only. Token verification and the MFA claim are implemented and tested with locally generated keys, not yet against a live Clerk instance.
 - Rate limiting is in-memory per instance; use a shared store when running more than one instance. `x-forwarded-for` is trusted as-is; configure the proxy.
 - KMS is a local mock; production needs a managed KMS and key rotation procedure.
 - Bot protection (e.g. Turnstile) on signup and support forms.
