@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { decryptField, encryptField, fieldAad } from "@privatepath/crypto";
+import type { Prisma } from "@privatepath/db";
 import type { Deps, RequestContext } from "./deps";
 import { writeAudit } from "./audit";
 import { AppError } from "./errors";
@@ -51,12 +52,12 @@ function open(dek: Buffer, rowId: string, field: Field, blob: Uint8Array | null)
   return JSON.parse(decryptField(dek, Buffer.from(blob), fieldAad("UserProfile", COLUMN[field], rowId)));
 }
 
-function encryptAll(dek: Buffer, rowId: string, values: Partial<Record<Field, unknown>>) {
-  const out: Record<string, Buffer | null> = {};
+function encryptAll(dek: Buffer, rowId: string, values: Partial<Record<Field, unknown>>): Prisma.UserProfileUncheckedUpdateInput {
+  const out: Record<string, Uint8Array<ArrayBuffer> | null> = {};
   for (const [f, v] of Object.entries(values) as [Field, unknown][]) {
-    out[COLUMN[f]] = v === null || v === undefined ? null : seal(dek, rowId, f, v);
+    out[COLUMN[f]] = v === null || v === undefined ? null : new Uint8Array(seal(dek, rowId, f, v));
   }
-  return out;
+  return out as Prisma.UserProfileUncheckedUpdateInput;
 }
 
 export async function createProfile(deps: Deps, session: Session, raw: unknown, ctx: RequestContext = {}) {
@@ -68,7 +69,7 @@ export async function createProfile(deps: Deps, session: Session, raw: unknown, 
   const dek = await getUserDek(deps, user.id);
   const id = randomUUID();
   await deps.db.$transaction(async (tx) => {
-    await tx.userProfile.create({ data: { id, userId: user.id, ...(encryptAll(dek, id, input) as any) } });
+    await tx.userProfile.create({ data: { id, userId: user.id, ...encryptAll(dek, id, input) } as Prisma.UserProfileUncheckedCreateInput });
     await writeAudit(tx, deps, ctx, {
       actorUserId: user.id, targetUserId: user.id, eventType: "PROFILE_CREATED",
       entityType: "UserProfile", entityId: id, metadata: { fieldNames: Object.keys(input) },
@@ -82,7 +83,7 @@ export async function getProfile(deps: Deps, session: Session) {
   const row = await deps.db.userProfile.findUnique({ where: { userId: user.id } });
   if (!row) throw new AppError(404, "profile_not_found", "No profile yet.");
   const dek = await getUserDek(deps, user.id);
-  const o = (f: Field) => open(dek, row.id, f, (row as any)[COLUMN[f]]);
+  const o = (f: Field) => open(dek, row.id, f, ((row as unknown as Record<string, Uint8Array | null>)[COLUMN[f]] ?? null));
   return {
     nickname: user.displayName,
     legalFirstName: o("legalFirstName"), legalLastName: o("legalLastName"),
@@ -101,7 +102,7 @@ export async function updateProfile(deps: Deps, session: Session, raw: unknown, 
   const dek = await getUserDek(deps, user.id);
   const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
   await deps.db.$transaction(async (tx) => {
-    await tx.userProfile.update({ where: { id: row.id }, data: encryptAll(dek, row.id, defined) as any });
+    await tx.userProfile.update({ where: { id: row.id }, data: encryptAll(dek, row.id, defined) });
     await writeAudit(tx, deps, ctx, {
       actorUserId: user.id, targetUserId: user.id, eventType: "PROFILE_UPDATED",
       entityType: "UserProfile", entityId: row.id, metadata: { fieldNames: Object.keys(defined) },

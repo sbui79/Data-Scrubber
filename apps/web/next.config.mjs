@@ -17,6 +17,8 @@ const csp = [
 /** @type {import('next').NextConfig} */
 export default {
   poweredByHeader: false,
+  output: "standalone", // small self-contained server for Docker
+  outputFileTracingRoot: path.resolve(import.meta.dirname, "../.."),
   transpilePackages: ["@privatepath/config", "@privatepath/core", "@privatepath/crypto", "@privatepath/audit", "@privatepath/db", "@privatepath/adapters"],
   serverExternalPackages: ["@prisma/client"],
   async headers() {

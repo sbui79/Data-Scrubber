@@ -100,6 +100,7 @@ curl -X POST -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/v1/inter
 
 ```bash
 pnpm test         # 144 unit + integration tests (needs the privatepath_test database)
+pnpm lint         # ESLint (includes accessibility rules)
 pnpm typecheck    # TypeScript
 pnpm e2e          # Playwright end-to-end journey + axe accessibility scans (resets the TEST database, never dev)
 pnpm --filter @privatepath/web build
@@ -137,6 +138,10 @@ Integration tests empty the test database between tests; never point `TEST_DATAB
 - Attorney review of all legal and compliance content; real source catalog review.
 - Full production checklist: `docs/security-checklist.md`.
 
+## Deploying
+
+`docker build -t privatepath .` produces a small non-root image. See `docs/deployment.md` for configuration, migrations, the reminder scheduler, and the launch blockers.
+
 ## Layout
 
 ```
@@ -157,4 +162,5 @@ docs/                 PRD, architecture, API, threat model, retention, security 
 - **`User was denied access on the database`:** put your Postgres username in the connection URL.
 - **Server errors on every request:** read the terminal running `next dev`; configuration problems name the missing
   variable. Confirm `apps/web/.env.local` exists (the symlink step).
+- **pnpm: `ERR_PNPM_IGNORED_BUILDS`:** run `pnpm approve-builds @prisma/client @prisma/engines prisma esbuild` (already recorded in `pnpm-workspace.yaml`).
 - **Changed `schema.prisma`:** add a numbered SQL migration, apply it to both databases, and re-run `pnpm --filter @privatepath/db generate`.

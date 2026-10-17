@@ -23,6 +23,8 @@ export function renderTemplate(template: string, values: Partial<Record<Token, s
   });
 }
 
+// Intentionally strips control characters so values cannot forge extra lines in a request.
+// eslint-disable-next-line no-control-regex
 const clean = (v: string) => v.replace(/[\r\n\t\u0000-\u001f]+/g, " ").trim();
 
 export interface DraftOptions {

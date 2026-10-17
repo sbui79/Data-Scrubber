@@ -22,6 +22,8 @@ const requireStorage = (deps: Deps) => {
   if (!deps.storage) throw new AppError(501, "storage_unavailable", "File storage isn't available.");
   return deps.storage;
 };
+// Intentionally strips control characters from user-supplied filenames.
+// eslint-disable-next-line no-control-regex
 const cleanName = (n: string) => n.split(/[\\/]/).pop()!.replace(/[\u0000-\u001f]/g, "").slice(0, 120) || "evidence";
 
 async function ownedRequest(deps: Deps, userId: string, requestId: string) {

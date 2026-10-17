@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { Prisma } from "@privatepath/db";
 import type { Deps, RequestContext } from "./deps";
 import type { Session } from "./auth";
 import { writeAudit } from "./audit";

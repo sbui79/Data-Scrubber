@@ -25,7 +25,9 @@ export function CaliforniaChecklist({ steps, done }: { steps: { step: number; ti
   return (
     <div>
       <ol className="space-y-3">{steps.map((s) => (
-        <li key={s.step}><label className="flex gap-3"><input type="checkbox" className="mt-1 size-5" checked={checked.includes(s.step)} onChange={(e) => toggle(s.step, e.target.checked)} />
+        <li key={s.step}>
+          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control -- text is in nested spans; verified accessible by axe and E2E */}
+          <label className="flex gap-3"><input type="checkbox" className="mt-1 size-5" checked={checked.includes(s.step)} onChange={(e) => toggle(s.step, e.target.checked)} />
           <span><span className="font-medium">{s.step}. {s.title}</span><span className="block text-sm text-stone-600">{s.detail}</span></span></label></li>))}</ol>
       <div className="mt-4 flex flex-wrap items-center gap-3"><button className={btn.secondary} onClick={remind} disabled={busy}>Remind me in 30 days</button></div>
       <div aria-live="polite" className="mt-3">{msg && <Alert kind={msg.kind}>{msg.text}</Alert>}</div>
