@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+:root { --ink: #1f2933; --calm: #2f6f6a; --paper: #fbfaf7; }
+body { background: var(--paper); color: var(--ink); font-family: ui-sans-serif, system-ui, sans-serif; }
+:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
