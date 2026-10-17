@@ -17,7 +17,7 @@ const csp = [
 /** @type {import('next').NextConfig} */
 export default {
   poweredByHeader: false,
-  transpilePackages: ["@privatepath/config", "@privatepath/core", "@privatepath/crypto", "@privatepath/audit", "@privatepath/db"],
+  transpilePackages: ["@privatepath/config", "@privatepath/core", "@privatepath/crypto", "@privatepath/audit", "@privatepath/db", "@privatepath/adapters"],
   serverExternalPackages: ["@prisma/client"],
   async headers() {
     return [{
@@ -30,6 +30,10 @@ export default {
         { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
       ],
+    }, {
+      // API responses are data or downloads, never pages: lock them down completely (later entries win).
+      source: "/api/:path*",
+      headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; frame-ancestors 'none'; sandbox" }],
     }];
   },
 };

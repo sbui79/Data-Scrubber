@@ -1,10 +1,13 @@
 import type { PrismaClient } from "@privatepath/db";
 import type { KmsAdapter } from "@privatepath/crypto";
+import type { StorageAdapter } from "@privatepath/adapters";
 
 export interface Deps {
   db: PrismaClient;
   kms: KmsAdapter;
   hashPepper: string;
+  /** Evidence file storage. Absent in contexts that do not handle files. */
+  storage?: StorageAdapter;
   /** Require an MFA-verified session for admin roles (always true outside local development). */
   requireAdminMfa?: boolean;
 }

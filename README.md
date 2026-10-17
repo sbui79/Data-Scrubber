@@ -20,9 +20,11 @@ user's behalf. The user reviews, approves, and submits every request themselves.
 | `packages/core` (signup/consent, encrypted profile, audit writer) | Done, 13 integration tests against real Postgres. |
 | API: signup, profile, source catalog (`/sources`), listing reviews (`/listing-reviews`) | Works with mock auth headers (see below). No UI for these yet. No rate limiting yet. |
 | Admin API: create / propose change / approve source (`/admin/sources...`) | Works. A different compliance admin must approve every new source or change; MFA is enforced in production. |
+| Removal requests: create, track, draft, approve, export, mark submitted, complete (`/removal-requests...`) | Works end to end over the API. Guarded state machine; a draft can't be copied or marked submitted until the user approves the exact content (hash-checked). Never auto-submits anywhere. |
+| Evidence upload / download / delete | Works (PNG, JPEG, WebP, PDF, up to 5 MB, 10 per request). Encrypted before storage. Local disk storage in development; production needs a real storage adapter (uploads return 501 until then). |
 | Listing URL validation | Done: https only, approved source domain or subdomain only, no credentials or ports, never fetched by the server. |
 | Demo data (`pnpm seed`) | 10 fictional sources on `.test` domains, a demo user, and two demo admins. |
-| Real login (Clerk), onboarding screens, source/admin screens, removal-request workflow, reminders, export/delete | Not built yet. |
+| Real login (Clerk), onboarding screens, source/admin/request screens, reminders, export/delete | Not built yet. |
 
 So there is no end-to-end user journey yet. The steps below get a development environment running and let
 you exercise the parts that exist.

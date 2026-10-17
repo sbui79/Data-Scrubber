@@ -13,6 +13,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.23.0",
+    "@privatepath/adapters": "workspace:*",
     "@privatepath/core": "workspace:*",
     "@privatepath/crypto": "workspace:*",
     "@privatepath/db": "workspace:*",

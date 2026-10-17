@@ -1,7 +1,15 @@
 {
-  "name": "@privatepath/core", "version": "0.0.0", "private": true, "type": "module", "main": "src/index.ts",
+  "name": "@privatepath/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
   "dependencies": {
-    "@privatepath/audit": "workspace:*", "@privatepath/config": "workspace:*",
-    "@privatepath/crypto": "workspace:*", "@privatepath/db": "workspace:*", "zod": "^3.23.0"
+    "@privatepath/audit": "workspace:*",
+    "@privatepath/config": "workspace:*",
+    "@privatepath/crypto": "workspace:*",
+    "@privatepath/db": "workspace:*",
+    "zod": "^3.23.0",
+    "@privatepath/adapters": "workspace:*"
   }
 }

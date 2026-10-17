@@ -15,16 +15,16 @@ export function generateDek(): Buffer {
 }
 
 /** Layout: version(1) || nonce(12) || ciphertext || tag(16). */
-export function encryptField(dek: Buffer, plaintext: string, aad: Buffer): Buffer {
+export function encryptBytes(dek: Buffer, plaintext: Buffer, aad: Buffer): Buffer {
   assertKey(dek);
   const nonce = randomBytes(NONCE_LEN);
   const cipher = createCipheriv("aes-256-gcm", dek, nonce);
   cipher.setAAD(aad);
-  const ct = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const ct = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   return Buffer.concat([Buffer.from([VERSION]), nonce, ct, cipher.getAuthTag()]);
 }
 
-export function decryptField(dek: Buffer, blob: Buffer, aad: Buffer): string {
+export function decryptBytes(dek: Buffer, blob: Buffer, aad: Buffer): Buffer {
   assertKey(dek);
   if (blob.length < 1 + NONCE_LEN + TAG_LEN || blob[0] !== VERSION) {
     throw new Error("Invalid ciphertext");
@@ -36,11 +36,19 @@ export function decryptField(dek: Buffer, blob: Buffer, aad: Buffer): string {
   decipher.setAAD(aad);
   decipher.setAuthTag(tag);
   try {
-    return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
+    return Buffer.concat([decipher.update(ct), decipher.final()]);
   } catch {
     // Deliberately generic: never echo key, AAD or data in errors.
     throw new Error("Decryption failed");
   }
+}
+
+export function encryptField(dek: Buffer, plaintext: string, aad: Buffer): Buffer {
+  return encryptBytes(dek, Buffer.from(plaintext, "utf8"), aad);
+}
+
+export function decryptField(dek: Buffer, blob: Buffer, aad: Buffer): string {
+  return decryptBytes(dek, blob, aad).toString("utf8");
 }
 
 /** Keyed hash for IP / user-agent values stored in consent and audit rows. */

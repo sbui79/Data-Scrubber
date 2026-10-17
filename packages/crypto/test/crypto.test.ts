@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { randomBytes } from "node:crypto";
-import { decryptField, encryptField, fieldAad, generateDek, hmacHash, MockKms } from "../src";
+import { decryptBytes, encryptBytes, decryptField, encryptField, fieldAad, generateDek, hmacHash, MockKms } from "../src";
 
 const aad = fieldAad("UserProfile", "encryptedLegalFirstName", "row1");
 
@@ -44,5 +44,16 @@ describe("hmacHash", () => {
   it("is deterministic per pepper and differs across peppers", () => {
     expect(hmacHash("1.2.3.4", "pepper-pepper-pepper")).toBe(hmacHash("1.2.3.4", "pepper-pepper-pepper"));
     expect(hmacHash("1.2.3.4", "pepper-pepper-pepper")).not.toBe(hmacHash("1.2.3.4", "other-other-other-"));
+  });
+});
+
+describe("byte encryption", () => {
+  it("round-trips binary data and rejects tampering", () => {
+    const dek = generateDek();
+    const data = randomBytes(2048);
+    const blob = encryptBytes(dek, data, aad);
+    expect(decryptBytes(dek, blob, aad).equals(data)).toBe(true);
+    blob[100] = blob[100]! ^ 1;
+    expect(() => decryptBytes(dek, blob, aad)).toThrow("Decryption failed");
   });
 });

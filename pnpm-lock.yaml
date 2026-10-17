@@ -199,6 +199,9 @@ importers:
       '@next/env':
         specifier: ^15.0.0
         version: 15.5.28
+      '@privatepath/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
       '@privatepath/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -240,6 +243,8 @@ importers:
         specifier: ^4.0.0
         version: 4.3.3
 
+  packages/adapters: {}
+
   packages/audit: {}
 
   packages/config:
@@ -250,6 +255,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@privatepath/adapters':
+        specifier: workspace:*
+        version: link:../adapters
       '@privatepath/audit':
         specifier: workspace:*
         version: link:../audit

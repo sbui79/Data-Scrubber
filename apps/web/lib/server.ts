@@ -3,6 +3,8 @@ import { loadEnv } from "@privatepath/config";
 import { MockKms } from "@privatepath/crypto";
 import { authenticate, toErrorResponse, type Deps, type RequestContext, type Session } from "@privatepath/core";
 import { createPrisma } from "@privatepath/db";
+import { LocalDiskStorage } from "@privatepath/adapters";
+import path from "node:path";
 
 const MAX_BODY_BYTES = 32_000;
 
@@ -19,13 +21,15 @@ function getDeps() {
       kms: new MockKms(Buffer.from(env.MOCK_KMS_MASTER_KEY, "base64")),
       hashPepper: env.HASH_PEPPER,
       requireAdminMfa: env.NODE_ENV === "production",
+      // Local disk storage is for development only; production needs a real adapter (until then, uploads return 501).
+      storage: env.NODE_ENV === "production" ? undefined : new LocalDiskStorage(path.join(process.cwd(), ".data", "evidence")),
     },
   };
   return cached;
 }
 
 /** Wraps a handler: authenticates, builds context, limits body size, maps errors without leaking data. */
-export function handle(fn: (a: { deps: Deps; session: Session; ctx: RequestContext; body: () => Promise<unknown>; params: Record<string, string> }) => Promise<unknown>, successStatus = 200) {
+export function handle(fn: (a: { deps: Deps; session: Session; ctx: RequestContext; body: () => Promise<unknown>; params: Record<string, string>; req: Request }) => Promise<unknown>, successStatus = 200) {
   return async (req: Request, route: { params: Promise<Record<string, string>> }): Promise<Response> => {
     try {
       const { deps, authMode } = getDeps();
@@ -40,7 +44,8 @@ export function handle(fn: (a: { deps: Deps; session: Session; ctx: RequestConte
         try { return JSON.parse(text); } catch { return undefined; }
       };
       const params = (await route.params) ?? {};
-      const result = await fn({ deps, session, ctx, body, params });
+      const result = await fn({ deps, session, ctx, body, params, req });
+      if (result instanceof Response) return result; // raw responses (file downloads) set their own headers
       return Response.json(result, { status: successStatus, headers: { "Cache-Control": "no-store" } });
     } catch (err) {
       const { status, body } = toErrorResponse(err);
