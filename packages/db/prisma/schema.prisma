@@ -251,6 +251,8 @@ model Notification {
 /// Deliberately has no foreign keys so account deletion can anonymize actor/target ids.
 model AuditEvent {
   id                   String   @id @default(cuid())
+  /// Chain order. Inserts are serialized by an advisory lock, so seq order == chain order.
+  seq                  BigInt   @unique @default(autoincrement())
   actorUserId          String?
   targetUserId         String?
   eventType            String
