@@ -19,7 +19,7 @@ pnpm install
 # database (creates dev and test databases and applies the migrations in order)
 for db in privatepath_dev privatepath_test; do
   createdb -h localhost $db
-  for m in 0001_init 0002_audit_seq 0003_california_progress; do
+  for m in 0001_init 0002_audit_seq 0003_california_progress 0004_subscription; do
     psql -h localhost -d $db -v ON_ERROR_STOP=1 -q -f packages/db/prisma/migrations/$m/migration.sql
   done
 done
@@ -99,7 +99,7 @@ curl -X POST -H "Authorization: Bearer $CRON_SECRET" localhost:3000/api/v1/inter
 ## Tests and checks
 
 ```bash
-pnpm test         # 144 unit + integration tests (needs the privatepath_test database)
+pnpm test         # 157 unit + integration tests (needs the privatepath_test database)
 pnpm lint         # ESLint (includes accessibility rules)
 pnpm typecheck    # TypeScript
 pnpm e2e          # Playwright end-to-end journey + axe accessibility scans (resets the TEST database, never dev)
@@ -125,6 +125,7 @@ Integration tests empty the test database between tests; never point `TEST_DATAB
 | California DROP education + self-tracked checklist | Done |
 | Data export, account deletion (files + key destroyed) | Done |
 | Support, safety resources, redacted staff queue, audited break-glass | Done (API + admin screens) |
+| Mock billing (plans never gate export/deletion), revocable marketing consent | Done |
 | Rate limiting, security headers, CSRF origin check, audit hash chain | Done (rate limiter is in-memory) |
 | Docs: API, threat model, retention, security checklist, iOS guide, compliance review | Done |
 
@@ -134,7 +135,7 @@ Integration tests empty the test database between tests; never point `TEST_DATAB
   Clerk tokens (`AUTH_MODE=clerk`, see `docs/deployment.md`) but has only been tested with locally signed tokens;
   today's browser sign-in is a development stub that is refused in production.
 - Production adapters: managed KMS, S3/R2 storage, real email provider, shared rate-limit store.
-- Billing (Stripe test mode); push notifications; OpenAPI generation.
+- Real payments (billing is a mock that takes no payment; Stripe test mode not wired); push notifications; OpenAPI generation.
 - Clerk-account deletion on account delete; audit-log retention purge.
 - Attorney review of all legal and compliance content; real source catalog review.
 - Full production checklist: `docs/security-checklist.md`.

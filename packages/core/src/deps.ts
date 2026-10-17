@@ -10,6 +10,8 @@ export interface Deps {
   storage?: StorageAdapter;
   /** Transactional email. Absent: EMAIL reminders are delivered in-app only. */
   email?: EmailAdapter;
+  /** Mock billing (records plans, takes no payment). Never enabled in production. */
+  mockBilling?: boolean;
   /** Public base URL used in links inside emails. */
   appUrl?: string;
   /** Require an MFA-verified session for admin roles (always true outside local development). */

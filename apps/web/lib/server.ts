@@ -93,6 +93,8 @@ export function getServerDeps() {
       kms: new MockKms(Buffer.from(env.MOCK_KMS_MASTER_KEY, "base64")),
       hashPepper: env.HASH_PEPPER,
       appUrl: env.APP_URL,
+      mockBilling: env.NODE_ENV !== "production", // mock billing never runs in production
+
       // Mock email logs only that a message was queued. Production needs a real adapter (reminders then stay in-app).
       email: env.NODE_ENV === "production" ? undefined : new ConsoleEmail(),
       requireAdminMfa: env.NODE_ENV === "production",

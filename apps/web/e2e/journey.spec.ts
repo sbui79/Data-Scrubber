@@ -152,8 +152,19 @@ test("a person can go from sign-up to a completed, exported and deleted account"
   await expect(page.getByText(/never ask you to send a government ID/i)).toBeVisible();
   await noSeriousA11yIssues(page, "help");
 
-  // --- export
+  // --- settings: marketing is opt-in and revocable; a paid (mock) plan never gates export or deletion
   await page.goto("/settings");
+  await noSeriousA11yIssues(page, "settings");
+  const marketing = page.getByLabel(/Send me occasional product news/);
+  await expect(marketing).not.toBeChecked();
+  await marketing.check();
+  await expect(page.getByText(/Opted in/)).toBeVisible();
+  await marketing.uncheck();
+  await page.getByRole("listitem").filter({ hasText: "Monthly monitoring" }).getByRole("button", { name: "Choose (mock)" }).click();
+  await expect(page.getByText("Plan added (mock).")).toBeVisible();
+  await expect(page.getByText(/always free and never require a paid plan/i)).toBeVisible();
+
+  // --- export
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Export my data" }).click()]);
   expect(download.suggestedFilename()).toBe("privatepath-export.json");
   const body = JSON.parse(await (await import("node:fs/promises")).readFile((await download.path())!, "utf8"));

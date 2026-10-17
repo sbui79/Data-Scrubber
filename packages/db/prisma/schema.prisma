@@ -73,6 +73,7 @@ model User {
   evidence       EvidenceFile[]
   supportCases   SupportCase[]
   californiaProgress CaliforniaProgress?
+  subscriptions  Subscription[]
 }
 
 /// Per-user data key, wrapped by the KMS master key. Deleting this row crypto-shreds the user's ciphertext.
@@ -300,4 +301,20 @@ model CaliforniaProgress {
   completedSteps Int[]
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// MOCK billing only for now (no payment provider). Plans never gate export, deletion or safety features.
+model Subscription {
+  id            String    @id @default(cuid())
+  userId        String
+  /// CLEANUP_ONE_TIME | MONITORING_MONTHLY
+  plan          String
+  /// ACTIVE | CANCELLED
+  status        String
+  mockReference String?
+  startedAt     DateTime  @default(now())
+  cancelledAt   DateTime?
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

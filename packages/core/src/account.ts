@@ -43,6 +43,7 @@ export async function exportData(deps: Deps, session: Session, ctx: RequestConte
     reminders: reminders.map((r) => ({ type: r.type, scheduledFor: r.scheduledFor, status: r.status, channel: r.channel, sentAt: r.sentAt })),
     notifications: notifications.map((n) => ({ title: n.title, body: n.body, createdAt: n.createdAt, readAt: n.readAt })),
     californiaChecklist: california?.completedSteps ?? [], supportCases,
+    subscriptions: (await deps.db.subscription.findMany({ where: { userId: user.id } })).map((s) => ({ plan: s.plan, status: s.status, startedAt: s.startedAt, cancelledAt: s.cancelledAt })),
     activityLog: activity.map((a) => ({ at: a.createdAt, event: a.eventType, entityType: a.entityType, details: a.metadataRedactedJson })),
   };
 }

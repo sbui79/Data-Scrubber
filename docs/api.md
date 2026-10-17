@@ -58,6 +58,16 @@ Statuses: `NOT_STARTED`, `LISTING_NOT_FOUND`, `LISTING_FOUND`, `DRAFT_READY`, `A
 | GET | `/california-drop-info` | Educational content, official links, the caller's self-reported checklist. |
 | PATCH | `/california-drop-info/progress` | `{ step: 1-5, done: boolean }`. Records the user's own progress only. PrivatePath never submits DROP requests. |
 
+## Billing and preferences
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/billing` | Placeholder plans, the caller's plans, and the policy text. Mode is `mock` or `disabled`. |
+| POST | `/billing/checkout` | `{ plan }`. **Mock only** (no payment); 501 in production. |
+| POST | `/billing/subscriptions/{id}/cancel` | Cancels an active plan. |
+| PATCH | `/account/marketing` | `{ optIn }`. Marketing consent is separate and revocable; reminders never depend on it. |
+
+Plans never gate export, deletion, safety resources or support.
+
 ## Support and safety
 | Method | Path | Notes |
 |---|---|---|
